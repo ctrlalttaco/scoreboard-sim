@@ -8,9 +8,7 @@ interface InstallPromptEvent extends Event {
 }
 
 export function PwaStatus() {
-  const [online, setOnline] = useState(() =>
-    typeof navigator === "undefined" ? true : navigator.onLine,
-  );
+  const [online, setOnline] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(
     null,
   );
@@ -25,6 +23,7 @@ export function PwaStatus() {
     window.addEventListener("online", updateOnline);
     window.addEventListener("offline", updateOnline);
     window.addEventListener("beforeinstallprompt", capturePrompt);
+    updateOnline();
 
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.register("/sw.js");
