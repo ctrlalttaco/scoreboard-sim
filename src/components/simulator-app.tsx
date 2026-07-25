@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
+import { useArenaHorn } from "../audio/use-arena-horn";
 import { getRemainingMs } from "../simulator/clock";
 import {
   createInitialSimulatorState,
@@ -41,6 +42,11 @@ export function SimulatorApp() {
   );
   const [mobileView, setMobileView] = useState<MobileView>("console");
   const announcedCompletions = useRef(new Set<string>());
+  const unlockHornAudio = useArenaHorn({
+    active: state.game.hornActive,
+    signalCount: state.game.hornSignalCount,
+    enabled: state.preferences.soundEnabled,
+  });
 
   useEffect(() => {
     const firstFrame = window.requestAnimationFrame(() =>
@@ -136,6 +142,7 @@ export function SimulatorApp() {
   ]);
 
   const pressKey = (key: ConsoleKeyId) => {
+    unlockHornAudio();
     dispatch({
       type: "CONSOLE_KEY_PRESSED",
       key,
@@ -242,6 +249,24 @@ export function SimulatorApp() {
             </select>
           </label>
           <PwaStatus />
+          <button
+            aria-label={
+              state.preferences.soundEnabled
+                ? "Mute horn sound"
+                : "Enable horn sound"
+            }
+            aria-pressed={state.preferences.soundEnabled}
+            className="reset-button"
+            onClick={() => {
+              if (!state.preferences.soundEnabled) {
+                unlockHornAudio(true);
+              }
+              dispatch({ type: "SOUND_TOGGLED" });
+            }}
+            type="button"
+          >
+            Horn sound: {state.preferences.soundEnabled ? "on" : "off"}
+          </button>
           <button
             className="reset-button"
             onClick={() => dispatch({ type: "SESSION_RESET" })}

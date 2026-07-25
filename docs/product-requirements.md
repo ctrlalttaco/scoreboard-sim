@@ -20,6 +20,7 @@ shots-on-goal, clock, period, and horn workflows without live equipment.
 - Game and period SOG variants
 - Guided, assessment, and free-practice modes
 - Offline-ready responsive operation and local-only progress
+- Offline-capable arena-horn audio with an operator mute control
 - Visible evidence boundary and unofficial-product disclaimer
 
 Physical scoreboard output, proprietary firmware emulation, league-rule

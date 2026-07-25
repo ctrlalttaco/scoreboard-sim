@@ -47,4 +47,47 @@ describe("hockey simulator application", () => {
       "rink-timer",
     );
   });
+
+  it("lets an operator mute and restore the horn sound", async () => {
+    const user = userEvent.setup();
+    const originalAudioContext = window.AudioContext;
+    let audioContextCreations = 0;
+    class UnavailableAudioContext {
+      constructor() {
+        audioContextCreations += 1;
+        throw new Error("audio unavailable");
+      }
+    }
+    Object.defineProperty(window, "AudioContext", {
+      configurable: true,
+      value: UnavailableAudioContext,
+    });
+
+    try {
+      render(<SimulatorApp />);
+
+      const soundControl = screen.getByRole("button", {
+        name: "Mute horn sound",
+      });
+      expect(soundControl).toHaveAttribute("aria-pressed", "true");
+
+      await user.click(soundControl);
+
+      expect(
+        screen.getByRole("button", { name: "Enable horn sound" }),
+      ).toHaveAttribute("aria-pressed", "false");
+      expect(audioContextCreations).toBe(0);
+
+      await user.click(
+        screen.getByRole("button", { name: "Enable horn sound" }),
+      );
+
+      expect(audioContextCreations).toBe(1);
+    } finally {
+      Object.defineProperty(window, "AudioContext", {
+        configurable: true,
+        value: originalAudioContext,
+      });
+    }
+  });
 });

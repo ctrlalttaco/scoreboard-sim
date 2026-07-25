@@ -190,6 +190,7 @@ export type SimulatorEvent =
     }
   | { type: "SCENARIO_CANCELLED" }
   | { type: "TRAINING_MODE_CHANGED"; mode: TrainingMode }
+  | { type: "SOUND_TOGGLED" }
   | { type: "TRAINING_HINT_REQUESTED" }
   | {
       type: "SCENARIO_COMPLETED";

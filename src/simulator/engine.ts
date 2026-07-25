@@ -712,12 +712,21 @@ export const reduceSimulator = (
             ...result,
           })),
         },
+        preferences: { ...state.preferences },
       };
     }
     case "TRAINING_MODE_CHANGED":
       return {
         ...state,
         training: { ...state.training, mode: event.mode },
+      };
+    case "SOUND_TOGGLED":
+      return {
+        ...state,
+        preferences: {
+          ...state.preferences,
+          soundEnabled: !state.preferences.soundEnabled,
+        },
       };
     case "SCENARIO_CANCELLED":
       return {

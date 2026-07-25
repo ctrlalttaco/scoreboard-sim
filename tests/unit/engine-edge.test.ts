@@ -206,6 +206,21 @@ describe("hockey simulator edge behavior", () => {
     expect(duplicate.training.completedScenarioIds).toEqual(["record-a-goal"]);
   });
 
+  it("keeps the operator horn preference when a drill starts", () => {
+    const muted = reduceSimulator(createInitialSimulatorState(), {
+      type: "SOUND_TOGGLED",
+    });
+    const started = reduceSimulator(muted, {
+      type: "SCENARIO_STARTED",
+      scenarioId: "record-a-goal",
+      seed: {},
+      timestampMs: 100,
+    });
+
+    expect(muted.preferences.soundEnabled).toBe(false);
+    expect(started.preferences.soundEnabled).toBe(false);
+  });
+
   it("stops coupled penalty clocks when confirming a live clock edit", () => {
     const penalized = runKeySequence(createInitialSimulatorState(), [
       "home-player-penalty",

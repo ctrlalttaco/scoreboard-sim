@@ -27,3 +27,6 @@
   are disabled.
 - Automatic horn expiry records a momentary signal and never leaves the horn
   latched.
+- Horn activation plays a locally synthesized, layered arena-horn sound. Manual
+  horn audio follows the press-and-hold control; automatic horn audio uses a
+  fixed 1.35-second burst. Operators can mute horn audio from the header.
