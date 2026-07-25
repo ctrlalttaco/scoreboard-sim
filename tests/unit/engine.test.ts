@@ -2,12 +2,143 @@ import { describe, expect, it } from "vitest";
 
 import {
   createInitialSimulatorState,
+  createPowerOnSimulatorState,
   reduceSimulator,
   runKeySequence,
 } from "@/src/simulator/engine";
 import { getPenaltyRemainingMs } from "@/src/simulator/selectors";
 
 describe("hockey simulator engine", () => {
+  it("starts a power cycle at the documented resume-game prompt", () => {
+    const poweredOn = createPowerOnSimulatorState();
+
+    expect(poweredOn.console.startup?.step).toBe("resume-game");
+
+    const resumed = runKeySequence(poweredOn, ["enter"]);
+    expect(resumed.console.startup).toBeNull();
+    expect(resumed.console.mode).toBe("ready");
+    expect(resumed.configuration.id).toBe("hockey-sog-game");
+  });
+
+  it("selects hockey code 62 through the power-on keypad flow", () => {
+    const configured = runKeySequence(createPowerOnSimulatorState(), [
+      "clear",
+      "digit-6",
+      "digit-2",
+      "enter",
+    ]);
+
+    expect(configured.console.startup).toBeNull();
+    expect(configured.console.mode).toBe("ready");
+    expect(configured.console.sportCode).toBe("62");
+    expect(configured.configuration.id).toBe("hockey-no-sog");
+    expect(configured.session.events).toEqual([]);
+  });
+
+  it("accepts auxiliary SOG and rink-timer codes at startup", () => {
+    const gameSog = runKeySequence(createPowerOnSimulatorState(), [
+      "clear",
+      "digit-6",
+      "digit-3",
+      "enter",
+      "digit-1",
+      "digit-9",
+      "digit-6",
+      "enter",
+    ]);
+    const periodSog = runKeySequence(createPowerOnSimulatorState(), [
+      "clear",
+      "digit-1",
+      "digit-9",
+      "digit-7",
+      "enter",
+    ]);
+    const rinkTimer = runKeySequence(createPowerOnSimulatorState(), [
+      "clear",
+      "digit-9",
+      "digit-6",
+      "enter",
+    ]);
+
+    expect(gameSog.configuration.id).toBe("hockey-sog-game");
+    expect(gameSog.configuration.auxiliaryCode).toBe("196");
+    expect(periodSog.configuration.id).toBe("hockey-sog-period");
+    expect(periodSog.configuration.auxiliaryCode).toBe("197");
+    expect(rinkTimer.configuration.id).toBe("ice-session-timer");
+  });
+
+  it("rejects an unsupported startup code and lets Clear retry", () => {
+    const invalid = runKeySequence(createPowerOnSimulatorState(), [
+      "clear",
+      "digit-6",
+      "digit-4",
+      "enter",
+    ]);
+    const retry = runKeySequence(invalid, ["clear"]);
+
+    expect(invalid.console.startup).toEqual({
+      step: "game-code",
+      buffer: "64",
+      error: "CODE NOT SUPPORTED",
+    });
+    expect(retry.console.startup).toEqual({
+      step: "game-code",
+      buffer: "6",
+      error: null,
+    });
+
+    const corrected = runKeySequence(retry, ["digit-2", "enter"]);
+    expect(corrected.configuration.id).toBe("hockey-no-sog");
+    expect(corrected.console.startup).toBeNull();
+  });
+
+  it("ignores game controls during startup and can restart the controller", () => {
+    const poweredOn = createPowerOnSimulatorState();
+    const ignored = runKeySequence(poweredOn, [
+      "home-score-plus-1",
+      "start",
+      "horn",
+    ]);
+    const ready = runKeySequence(poweredOn, ["enter"]);
+    const restarted = reduceSimulator(ready, {
+      type: "CONSOLE_POWER_CYCLED",
+      timestampMs: 500,
+    });
+    const blockedReset = reduceSimulator(restarted, {
+      type: "SESSION_RESET",
+    });
+    const blockedScenario = reduceSimulator(restarted, {
+      type: "SCENARIO_STARTED",
+      scenarioId: "record-a-goal",
+      seed: { homeScore: 5 },
+      timestampMs: 600,
+    });
+
+    expect(ignored.game.home.score).toBe(0);
+    expect(ignored.clock.running).toBe(false);
+    expect(ignored.game.hornSignalCount).toBe(0);
+    expect(restarted.console.startup?.step).toBe("resume-game");
+    expect(blockedReset).toBe(restarted);
+    expect(blockedScenario).toBe(restarted);
+  });
+
+  it("resumes the preserved game after a controller restart", () => {
+    const liveGame = runKeySequence(
+      createInitialSimulatorState({ homeScore: 3 }),
+      ["start"],
+    );
+    const restarting = reduceSimulator(liveGame, {
+      type: "CONSOLE_POWER_CYCLED",
+      timestampMs: 5_000,
+    });
+    const resumed = runKeySequence(restarting, ["enter"]);
+
+    expect(restarting.clock.running).toBe(false);
+    expect(resumed.game.home.score).toBe(3);
+    expect(resumed.clock.remainingAtReferenceMs).toBe(19 * 60_000 + 55_000);
+    expect(resumed.session.events).toEqual(liveGame.session.events);
+  });
+
   it("starts in the source-backed hockey with game SOG configuration", () => {
     const first = createInitialSimulatorState();
     const second = createInitialSimulatorState();

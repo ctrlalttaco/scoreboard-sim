@@ -15,6 +15,8 @@ shots-on-goal, clock, period, and horn workflows without live equipment.
 
 ## Required behavior
 
+- Keypad-driven controller startup with resume, game-code, validation, and
+  correction states
 - Deterministic main and player-penalty clocks
 - Six player-penalty slots per team
 - Game and period SOG variants

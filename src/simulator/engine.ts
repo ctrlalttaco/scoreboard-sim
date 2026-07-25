@@ -5,7 +5,10 @@ import {
   startClock,
   stopClock,
 } from "./clock";
-import { getRinkConfiguration } from "./configurations";
+import {
+  getRinkConfiguration,
+  getStartupConfigurationId,
+} from "./configurations";
 import type {
   ConsoleKeyId,
   HockeyGameState,
@@ -51,6 +54,7 @@ export const createInitialSimulatorState = (
       power: "on",
       sportCode: configuration.sportCode,
       overlayId: configuration.overlayId,
+      startup: null,
       mode: "ready",
       inputBuffer: "",
       pendingOperation: null,
@@ -92,6 +96,47 @@ export const createInitialSimulatorState = (
       soundEnabled: true,
       reducedMotion: false,
     },
+  };
+};
+
+export const createPowerOnSimulatorState = (
+  seed: SimulatorStateSeed = {},
+  startedAtMs = 0,
+  mode: TrainingMode = "free",
+): SimulatorState => {
+  const state = createInitialSimulatorState(seed, startedAtMs, mode);
+  return {
+    ...state,
+    console: {
+      ...state.console,
+      startup: {
+        step: "resume-game",
+        buffer: "",
+        error: null,
+      },
+    },
+  };
+};
+
+const applyConfiguration = (
+  state: SimulatorState,
+  configurationId: SimulatorState["configuration"]["id"],
+): SimulatorState => {
+  const configured = createInitialSimulatorState(
+    { configurationId },
+    0,
+    state.training.mode,
+  );
+  return {
+    ...configured,
+    training: {
+      ...configured.training,
+      completedScenarioIds: [...state.training.completedScenarioIds],
+      assessmentResults: state.training.assessmentResults.map((result) => ({
+        ...result,
+      })),
+    },
+    preferences: { ...state.preferences },
   };
 };
 
@@ -582,11 +627,129 @@ const handleReadyKey = (
   return state;
 };
 
+const withStartup = (
+  state: SimulatorState,
+  startup: NonNullable<SimulatorState["console"]["startup"]>,
+): SimulatorState => ({
+  ...state,
+  console: {
+    ...state.console,
+    startup,
+    errorMessage: null,
+  },
+});
+
+const handleStartupKey = (
+  state: SimulatorState,
+  key: ConsoleKeyId,
+): SimulatorState => {
+  const startup = state.console.startup;
+  if (!startup) {
+    return state;
+  }
+
+  if (startup.step === "resume-game") {
+    if (key === "enter") {
+      return {
+        ...state,
+        console: {
+          ...state.console,
+          startup: null,
+          mode: "ready",
+          errorMessage: null,
+        },
+      };
+    }
+    if (key === "clear") {
+      return withStartup(state, {
+        step: "game-code",
+        buffer: "",
+        error: null,
+      });
+    }
+    return state;
+  }
+
+  if (startup.error) {
+    return key === "clear"
+      ? withStartup(state, {
+          ...startup,
+          buffer: startup.buffer.slice(0, -1),
+          error: null,
+        })
+      : state;
+  }
+
+  if (key.startsWith("digit-")) {
+    if (startup.buffer.length >= 3) {
+      return state;
+    }
+    return withStartup(state, {
+      ...startup,
+      buffer: `${startup.buffer}${key.slice(-1)}`,
+    });
+  }
+
+  if (key === "clear") {
+    if (startup.buffer) {
+      return withStartup(state, {
+        ...startup,
+        buffer: startup.buffer.slice(0, -1),
+      });
+    }
+    return startup.step === "sog-code"
+      ? withStartup(state, {
+          step: "game-code",
+          buffer: "",
+          error: null,
+        })
+      : state;
+  }
+
+  if (key !== "enter") {
+    return state;
+  }
+
+  if (!startup.buffer) {
+    return withStartup(state, { ...startup, error: "ENTER A CODE" });
+  }
+
+  if (startup.step === "game-code" && startup.buffer === "63") {
+    return withStartup(state, {
+      step: "sog-code",
+      buffer: "",
+      error: null,
+    });
+  }
+
+  const configurationId = getStartupConfigurationId(startup.buffer);
+  const validForStep =
+    configurationId &&
+    (startup.step === "game-code" ||
+      startup.buffer === "196" ||
+      startup.buffer === "197");
+  if (!validForStep) {
+    return withStartup(state, {
+      ...startup,
+      error:
+        startup.step === "sog-code"
+          ? "USE CODE 196 OR 197"
+          : "CODE NOT SUPPORTED",
+    });
+  }
+
+  return applyConfiguration(state, configurationId);
+};
+
 const handleConsoleKey = (
   state: SimulatorState,
   key: ConsoleKeyId,
   timestampMs: number,
 ): SimulatorState => {
+  if (state.console.startup) {
+    return handleStartupKey(state, key);
+  }
+
   if (state.console.pendingOperation) {
     if (key === "clear") {
       return clearPendingOperation(state);
@@ -661,6 +824,9 @@ export const reduceSimulator = (
 ): SimulatorState => {
   switch (event.type) {
     case "SESSION_RESET": {
+      if (state.console.startup) {
+        return state;
+      }
       const reset = createInitialSimulatorState(
         { configurationId: state.configuration.id },
         0,
@@ -678,25 +844,43 @@ export const reduceSimulator = (
         preferences: { ...state.preferences },
       };
     }
-    case "CONFIGURATION_CHANGED": {
-      const configured = createInitialSimulatorState(
-        { configurationId: event.configurationId },
-        0,
-        state.training.mode,
-      );
+    case "CONSOLE_POWER_CYCLED": {
+      const game = state.clock.running
+        ? stopPenalties(state.game, event.timestampMs)
+        : state.game;
       return {
-        ...configured,
-        training: {
-          ...configured.training,
-          completedScenarioIds: [...state.training.completedScenarioIds],
-          assessmentResults: state.training.assessmentResults.map((result) => ({
-            ...result,
-          })),
+        ...state,
+        clock: stopClock(state.clock, event.timestampMs),
+        game: {
+          ...game,
+          hornActive: false,
         },
-        preferences: { ...state.preferences },
+        console: {
+          ...state.console,
+          startup: {
+            step: "resume-game",
+            buffer: "",
+            error: null,
+          },
+          mode: "ready",
+          inputBuffer: "",
+          pendingOperation: null,
+          lastKey: null,
+          errorMessage: null,
+        },
+        training: {
+          ...state.training,
+          activeScenarioId: null,
+          hintsRequested: 0,
+        },
       };
     }
+    case "CONFIGURATION_CHANGED":
+      return applyConfiguration(state, event.configurationId);
     case "SCENARIO_STARTED": {
+      if (state.console.startup) {
+        return state;
+      }
       const next = createInitialSimulatorState(
         event.seed,
         event.timestampMs,
@@ -799,6 +983,13 @@ export const reduceSimulator = (
       };
     }
     case "CONSOLE_KEY_PRESSED": {
+      if (state.console.startup) {
+        const next = handleStartupKey(state, event.key);
+        return {
+          ...next,
+          console: { ...next.console, lastKey: event.key },
+        };
+      }
       const next = handleConsoleKey(state, event.key, event.timestampMs);
       return recordKey(state, next, event.key, event.timestampMs);
     }

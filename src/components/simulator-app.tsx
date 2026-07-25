@@ -5,7 +5,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useArenaHorn } from "../audio/use-arena-horn";
 import { getRemainingMs } from "../simulator/clock";
 import {
-  createInitialSimulatorState,
+  createPowerOnSimulatorState,
   reduceSimulator,
 } from "../simulator/engine";
 import { rinkConfigurations } from "../simulator/configurations";
@@ -34,7 +34,7 @@ export function SimulatorApp() {
   const [state, dispatch] = useReducer(
     reduceSimulator,
     undefined,
-    createInitialSimulatorState,
+    createPowerOnSimulatorState,
   );
   const [timestampMs, setTimestampMs] = useState(0);
   const [selectedScenarioId, setSelectedScenarioId] = useState(
@@ -269,6 +269,16 @@ export function SimulatorApp() {
           </button>
           <button
             className="reset-button"
+            onClick={() =>
+              dispatch({ type: "CONSOLE_POWER_CYCLED", timestampMs: now() })
+            }
+            type="button"
+          >
+            Restart controller
+          </button>
+          <button
+            className="reset-button"
+            disabled={Boolean(state.console.startup)}
             onClick={() => dispatch({ type: "SESSION_RESET" })}
             type="button"
           >

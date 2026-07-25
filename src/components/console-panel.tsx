@@ -105,6 +105,7 @@ const TeamCluster = ({
 }) => {
   const timerOnly = state.configuration.mode === "rink-timer";
   const noShots = state.configuration.shotsOnGoalMode === "none";
+  const startupActive = state.console.startup !== null;
 
   return (
     <section
@@ -115,7 +116,7 @@ const TeamCluster = ({
       <div className="team-key-grid">
         {teamOverlayKeys(team).map((definition) => {
           const isShots = definition.keyId.includes("-shots-");
-          const disabled = timerOnly || (isShots && noShots);
+          const disabled = startupActive || timerOnly || (isShots && noShots);
           return (
             <ConsoleKey
               definition={definition}
@@ -145,6 +146,7 @@ const FixedKeypad = ({
 }) => {
   const numericKeys = fixedConsoleKeys.slice(0, 12);
   const controlKeys = fixedConsoleKeys.slice(12);
+  const startup = state.console.startup;
 
   return (
     <section className="fixed-keypad" aria-label="Fixed console keypad">
@@ -152,6 +154,12 @@ const FixedKeypad = ({
         {numericKeys.map((definition) => (
           <ConsoleKey
             definition={definition}
+            disabled={
+              (startup?.step === "resume-game" &&
+                definition.keyId !== "clear" &&
+                definition.keyId !== "enter") ||
+              (Boolean(startup?.error) && definition.keyId !== "clear")
+            }
             key={definition.keyId}
             onKey={onKey}
             pressed={state.console.lastKey === definition.keyId}
@@ -161,15 +169,26 @@ const FixedKeypad = ({
       <div className="console-navigation" aria-label="Console navigation">
         <button
           aria-label="Previous penalty slot"
-          className="console-key role-clock"
+          className="console-key role-clock nav-up"
+          disabled={Boolean(startup)}
           onClick={() => onKey("arrow-up")}
           type="button"
         >
           ▲
         </button>
+        <span aria-hidden="true" className="nav-left">
+          ◀
+        </span>
+        <span aria-hidden="true" className="nav-center">
+          EDIT
+        </span>
+        <span aria-hidden="true" className="nav-right">
+          ▶
+        </span>
         <button
           aria-label="Next penalty slot"
-          className="console-key role-clock"
+          className="console-key role-clock nav-down"
+          disabled={Boolean(startup)}
           onClick={() => onKey("arrow-down")}
           type="button"
         >
@@ -180,6 +199,7 @@ const FixedKeypad = ({
         {controlKeys.map((definition) => (
           <ConsoleKey
             definition={definition}
+            disabled={Boolean(startup)}
             key={definition.keyId}
             onKey={onKey}
             pressed={
@@ -197,7 +217,9 @@ const FixedKeypad = ({
 export function ConsolePanel({ state, timestampMs, onKey }: ConsolePanelProps) {
   const lcd = selectLcdLines(state, timestampMs);
   const isPrompt = Boolean(
-    state.console.pendingOperation || state.console.mode === "error",
+    state.console.startup ||
+    state.console.pendingOperation ||
+    state.console.mode === "error",
   );
   const auxiliary = state.configuration.auxiliaryCode
     ? ` + SOG ${state.configuration.auxiliaryCode}`
@@ -211,57 +233,90 @@ export function ConsolePanel({ state, timestampMs, onKey }: ConsolePanelProps) {
           <h2>4000 Series Console</h2>
         </div>
         <span className="source-chip">
-          CODE {state.console.sportCode}
-          {auxiliary} · {state.console.overlayId.toUpperCase()}
+          {state.console.startup ? (
+            "AWAITING GAME CODE"
+          ) : (
+            <>
+              CODE {state.console.sportCode}
+              {auxiliary} · {state.console.overlayId.toUpperCase()}
+            </>
+          )}
         </span>
       </div>
 
       <div className="console-chassis">
-        <div className="lcd-bezel">
-          <div
-            aria-label={`${lcd.line1}. ${lcd.line2}`}
-            aria-live={isPrompt ? "polite" : "off"}
-            className="lcd-display"
-            role={isPrompt ? "status" : undefined}
-          >
-            <span data-testid="lcd-line-1">{lcd.line1}</span>
-            <span data-testid="lcd-line-2">{lcd.line2}</span>
+        <div className="console-lid">
+          <div className="console-maker" aria-hidden="true">
+            <strong>LEGACY</strong>
+            <span>SCORE SYSTEMS</span>
           </div>
-          <small>
-            Hockey key roles follow ED-9999. Prompt wording is labeled as a
-            training recreation where exact firmware text is unavailable.
-          </small>
-        </div>
-
-        <div className="overlay-board">
-          <TeamCluster onKey={onKey} state={state} team="home" />
-          <section className="game-cluster" aria-label="Game keys">
-            <div className="game-key-grid">
-              {gameOverlayKeys.map((definition) => (
-                <ConsoleKey
-                  definition={definition}
-                  disabled={state.configuration.mode === "rink-timer"}
-                  key={definition.keyId}
-                  onKey={onKey}
-                  pressed={
-                    state.console.lastKey === definition.keyId ||
-                    (definition.keyId === "enable-penalty-clocks" &&
-                      state.game.penaltyClocksEnabled) ||
-                    (definition.keyId === "disable-penalty-clocks" &&
-                      !state.game.penaltyClocksEnabled)
-                  }
-                />
-              ))}
+          <div className="lcd-bezel">
+            <div
+              aria-label={`${lcd.line1}. ${lcd.line2}`}
+              aria-live={isPrompt ? "polite" : "off"}
+              className="lcd-display"
+              role={isPrompt ? "status" : undefined}
+            >
+              <span data-testid="lcd-line-1">{lcd.line1}</span>
+              <span data-testid="lcd-line-2">{lcd.line2}</span>
             </div>
-            <span>
-              {state.configuration.mode === "hockey" ? "HOCKEY" : "RINK TIMER"}
-            </span>
-          </section>
-          <TeamCluster onKey={onKey} state={state} team="guest" />
+          </div>
+          <div className="console-model" aria-hidden="true">
+            <span>all rink</span>
+            <strong>4000</strong>
+            <small>TRAINING CONSOLE</small>
+          </div>
         </div>
+        <div className="console-hinge" aria-hidden="true" />
 
-        <FixedKeypad onKey={onKey} state={state} />
+        <div className="console-deck">
+          <div className="overlay-board">
+            <div className="insert-caption">
+              <span>HOCKEY / RINK OPERATIONS</span>
+              <small>{state.console.overlayId.toUpperCase()}</small>
+            </div>
+            <TeamCluster onKey={onKey} state={state} team="home" />
+            <section className="game-cluster" aria-label="Game keys">
+              <div className="game-key-grid">
+                {gameOverlayKeys.map((definition) => (
+                  <ConsoleKey
+                    definition={definition}
+                    disabled={
+                      Boolean(state.console.startup) ||
+                      state.configuration.mode === "rink-timer"
+                    }
+                    key={definition.keyId}
+                    onKey={onKey}
+                    pressed={
+                      state.console.lastKey === definition.keyId ||
+                      (definition.keyId === "enable-penalty-clocks" &&
+                        state.game.penaltyClocksEnabled) ||
+                      (definition.keyId === "disable-penalty-clocks" &&
+                        !state.game.penaltyClocksEnabled)
+                    }
+                  />
+                ))}
+              </div>
+              <span>
+                {state.console.startup
+                  ? "STARTUP LOCKED"
+                  : state.configuration.mode === "hockey"
+                    ? "HOCKEY"
+                    : "RINK TIMER"}
+              </span>
+            </section>
+            <TeamCluster onKey={onKey} state={state} team="guest" />
+          </div>
+
+          <FixedKeypad onKey={onKey} state={state} />
+        </div>
+        <div className="console-lower-rail" aria-hidden="true" />
       </div>
+      <small className="console-source-note">
+        {state.console.startup
+          ? "Power-on flow: CLEAR declines resume, then enter 62, 63, 96, 196, or 197. Code 63 continues to SOG code 196 or 197."
+          : "Hockey key roles follow ED-9999. Prompt wording is labeled as a training recreation where exact firmware text is unavailable."}
+      </small>
     </section>
   );
 }

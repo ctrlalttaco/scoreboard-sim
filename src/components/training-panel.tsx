@@ -46,7 +46,7 @@ export function TrainingPanel({
           <h2>Training task</h2>
         </div>
         <span className={`status-dot ${isActive ? "is-active" : ""}`}>
-          {isActive ? "LIVE" : "READY"}
+          {state.console.startup ? "STARTUP" : isActive ? "LIVE" : "READY"}
         </span>
       </div>
 
@@ -91,7 +91,15 @@ export function TrainingPanel({
         <p>{scenario.description}</p>
       </article>
 
-      {state.training.mode === "free" ? (
+      {state.console.startup ? (
+        <div className="practice-note">
+          <strong>Complete controller startup first.</strong>
+          <span>
+            Use the console keypad to resume or enter a game code. Training
+            controls unlock when the console is ready.
+          </span>
+        </div>
+      ) : state.training.mode === "free" ? (
         <div className="practice-note">
           <strong>Free practice is active.</strong>
           <span>

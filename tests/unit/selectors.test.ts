@@ -2,11 +2,30 @@ import { describe, expect, it } from "vitest";
 
 import {
   createInitialSimulatorState,
+  createPowerOnSimulatorState,
   runKeySequence,
 } from "@/src/simulator/engine";
 import { selectLcdLines } from "@/src/simulator/selectors";
 
 describe("hockey console selectors", () => {
+  it("renders the controller power-on and game-code prompts", () => {
+    const poweredOn = createPowerOnSimulatorState();
+    expect(selectLcdLines(poweredOn, 0)).toEqual({
+      line1: "RESUME GAME?",
+      line2: "ENTER YES CLEAR NO",
+    });
+
+    const enteringCode = runKeySequence(poweredOn, [
+      "clear",
+      "digit-6",
+      "digit-3",
+    ]);
+    expect(selectLcdLines(enteringCode, 0)).toEqual({
+      line1: "ENTER GAME CODE",
+      line2: "63  ENTER *",
+    });
+  });
+
   it("renders hockey ready, score-entry, and player-penalty LCD states", () => {
     const ready = createInitialSimulatorState();
     expect(selectLcdLines(ready, 0)).toEqual({

@@ -17,6 +17,11 @@ The LL-2274 hockey overlay supports goals, player penalties, penalty-clock
 coupling, timeouts, periods, the main clock, and horn controls. Ten guided or
 assessed drills cover common operator sequences.
 
+The simulator opens with the documented controller startup decision. Decline
+resume with CLEAR, enter a supported game code on the console keypad, and press
+ENTER. Code 63 continues to the trainer's SOG configuration step for code 196
+or 197. The header configuration selector remains available as a shortcut.
+
 ## Source and legal boundary
 
 Behavior is traced in `docs/fidelity-sources.md` to Daktronics ED-9999 and

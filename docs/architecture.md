@@ -11,6 +11,7 @@ dependency for simulation.
 ```text
 Semantic console key
   -> pure simulator reducer
+  -> exclusive power-on/resume and game-code state
   -> optional pending numeric operation
   -> immutable hockey/rink and clock update
   -> semantic session event
@@ -20,6 +21,12 @@ Semantic console key
 
 `src/simulator/` contains the authoritative state. React components render that
 state and dispatch semantic events only.
+
+Power-on setup is isolated from normal numeric-entry workflows. While it is
+active, only the keypad controls needed by the current startup step are
+accepted; game, team, clock, penalty, and horn actions are locked.
+Startup key entry is intentionally outside training session history; current
+drills evaluate configured game operation, not controller boot procedures.
 
 ## Clock
 

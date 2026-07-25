@@ -25,6 +25,30 @@ export const selectLcdLines = (
   state: SimulatorState,
   timestampMs: number,
 ): { line1: string; line2: string } => {
+  const startup = state.console.startup;
+  if (startup?.step === "resume-game") {
+    return {
+      line1: "RESUME GAME?",
+      line2: "ENTER YES CLEAR NO",
+    };
+  }
+
+  if (startup) {
+    if (startup.error) {
+      return {
+        line1:
+          startup.step === "sog-code"
+            ? "INVALID SOG CODE"
+            : "INVALID GAME CODE",
+        line2: `${startup.error} · CLEAR`,
+      };
+    }
+    return {
+      line1: startup.step === "sog-code" ? "ENTER SOG CODE" : "ENTER GAME CODE",
+      line2: `${startup.buffer || "•••"}  ENTER *`,
+    };
+  }
+
   if (state.console.mode === "error") {
     return {
       line1: "ENTRY ERROR",

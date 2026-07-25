@@ -23,6 +23,7 @@ describe("hockey simulator application", () => {
     const user = userEvent.setup();
     render(<SimulatorApp />);
 
+    await user.click(screen.getByRole("button", { name: "Enter" }));
     await user.click(screen.getByRole("button", { name: "Home score plus 1" }));
     await user.click(
       screen.getByRole("button", { name: "Home shots on goal plus 1" }),
@@ -30,6 +31,36 @@ describe("hockey simulator application", () => {
 
     expect(screen.getByTestId("home-score")).toHaveTextContent("1");
     expect(screen.getByTestId("home-shots")).toHaveTextContent("1");
+  });
+
+  it("configures the controller from scratch with a game code", async () => {
+    const user = userEvent.setup();
+    render(<SimulatorApp />);
+
+    expect(screen.getByTestId("lcd-line-1")).toHaveTextContent("RESUME GAME?");
+    expect(
+      screen.getByRole("button", { name: "Home score plus 1" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Reset session" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Complete controller startup first."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(screen.getByRole("button", { name: "Digit 6" }));
+    await user.click(screen.getByRole("button", { name: "Digit 2" }));
+    await user.click(screen.getByRole("button", { name: "Enter" }));
+
+    expect(screen.getByText("CODE 62 · LL-2274")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rink configuration")).toHaveValue(
+      "hockey-no-sog",
+    );
+    expect(
+      screen.getByRole("button", { name: "Home score plus 1" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reset session" })).toBeEnabled();
   });
 
   it("switches to an ice-session timer configuration", async () => {

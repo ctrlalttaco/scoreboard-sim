@@ -70,3 +70,16 @@ export const getRinkConfiguration = (
 ): RinkConfiguration =>
   rinkConfigurations.find((configuration) => configuration.id === id) ??
   rinkConfigurations[1];
+
+const startupConfigurationByCode: Readonly<
+  Record<string, RinkConfigurationId>
+> = {
+  "62": "hockey-no-sog",
+  "96": "ice-session-timer",
+  "196": "hockey-sog-game",
+  "197": "hockey-sog-period",
+};
+
+export const getStartupConfigurationId = (
+  code: string,
+): RinkConfigurationId | null => startupConfigurationByCode[code] ?? null;

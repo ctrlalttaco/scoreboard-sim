@@ -9,6 +9,14 @@ test("completes a source-backed hockey goal and SOG flow", async ({ page }) => {
   await expect(page.getByLabel("Rink configuration")).toHaveValue(
     "hockey-sog-game",
   );
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await page.getByRole("button", { name: "Digit 6" }).click();
+  await page.getByRole("button", { name: "Digit 3" }).click();
+  await page.getByRole("button", { name: "Enter" }).click();
+  await page.getByRole("button", { name: "Digit 1" }).click();
+  await page.getByRole("button", { name: "Digit 9" }).click();
+  await page.getByRole("button", { name: "Digit 6" }).click();
+  await page.getByRole("button", { name: "Enter" }).click();
   await page.getByRole("button", { name: "Home score plus 1" }).click();
   await page.getByRole("button", { name: "Home shots on goal plus 1" }).click();
   await expect(page.getByTestId("home-score")).toHaveText("1");
@@ -16,6 +24,7 @@ test("completes a source-backed hockey goal and SOG flow", async ({ page }) => {
 });
 
 test("fits a phone viewport without horizontal scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/");
   const overflow = await page.evaluate(
     () =>

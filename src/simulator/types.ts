@@ -108,12 +108,26 @@ export interface ConsoleState {
   power: "on";
   sportCode: RinkConfiguration["sportCode"];
   overlayId: RinkConfiguration["overlayId"];
+  startup: ConsoleStartupState;
   mode: ConsoleMode;
   inputBuffer: string;
   pendingOperation: PendingConsoleOperation | null;
   lastKey: ConsoleKeyId | null;
   errorMessage: string | null;
 }
+
+export type ConsoleStartupState =
+  | {
+      step: "resume-game";
+      buffer: "";
+      error: null;
+    }
+  | {
+      step: "game-code" | "sog-code";
+      buffer: string;
+      error: string | null;
+    }
+  | null;
 
 export interface AssessmentResult {
   scenarioId: string;
@@ -178,6 +192,7 @@ export type SimulatorEvent =
       timestampMs: number;
     }
   | { type: "SESSION_RESET" }
+  | { type: "CONSOLE_POWER_CYCLED"; timestampMs: number }
   | {
       type: "CONFIGURATION_CHANGED";
       configurationId: RinkConfigurationId;
